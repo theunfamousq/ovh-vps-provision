@@ -1,0 +1,106 @@
+# ---- SSH hardening ----
+- name: Hardening SSH via drop-in
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/99-hardening.conf
+    content: "{{ lookup('template', 'sshd_99-hardening.conf.j2') }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart SSH
+
+# ---- UFW configuration ----
+- name: Activate or deactivate IPv6 in UFW
+  ansible.builtin.lineinfile:
+    path: /etc/default/ufw
+    regexp: "^IPV6="
+    line: "IPV6={{ 'yes' if ufw_ipv6_enable else 'no' }}"
+    create: false
+  notify: Reload UFW
+
+- name: Temporary allow old SSH port 22 if ssh_port != 22
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+  when: ssh_port | int != 22
+
+- name: Limit SSH connections
+  community.general.ufw:
+    rule: limit
+    port: "{{ ssh_port }}"
+    proto: tcp
+  when: ufw_limit_ssh | bool
+
+- name: Open declared ports in UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: "{{ (open_ports | unique | map('string') | list) | difference([ssh_port | int]) }}"
+
+- name: Activate UFW (deny incoming, allow outgoing)
+  community.general.ufw:
+    state: enabled
+    policy: deny
+
+# ---- Fail2ban configuration ----
+- name: Setup Fail2ban for sshd
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/sshd.local
+    content: "{{ lookup('template', 'fail2ban-sshd.local.j2') }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Fail2Ban
+
+# ---- Unattended upgrades ----
+- name: Setup Unattended-Upgrades (50*)
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    content: "{{ lookup('template', '50unattended-upgrades.j2') }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: enable_unattended_upgrades
+
+- name: Activate Unattended-Upgrades (20*)
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: "{{ lookup('template', '20auto-upgrades.j2') }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: enable_unattended_upgrades
+
+# ---- System update ----
+- name: Update and upgrade system packages
+  ansible.builtin.apt:
+    upgrade: dist
+    update_cache: true
+
+# ---- Final UFW tweaks ----
+- name: Remove temporary allow on old SSH port 22 if ssh_port != 22
+  community.general.ufw:
+    rule: deny
+    port: "22"
+    proto: tcp
+  when: ssh_port | int != 22
+
+- name: Reload UFW
+  ansible.builtin.command: ufw reload
+  changed_when: false
+
+# ---- Start and enable critical services ----
+- name: Ensure critical services are started and enabled
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - fail2ban
+    - auditd
+    - rsyslog
+
+# ---- Handlers ----
+- name: Trigger handlers
+  ansible.builtin.meta: flush_handlers

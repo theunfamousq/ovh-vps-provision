@@ -1,0 +1,45 @@
+- name: Switch Ansible to configured SSH port
+  ansible.builtin.set_fact:
+    ansible_port: "{{ ssh_port }}" # noqa var-naming
+
+- name: Restart system to apply all updates
+  ansible.builtin.reboot:
+    msg: "Reboot initiated by Ansible for finalizing the system setup."
+    connect_timeout: 5
+    reboot_timeout: 600
+    pre_reboot_delay: 0
+    post_reboot_delay: 15
+    test_command: whoami
+  when: reboot_after_finalize | bool
+
+- name: Disable default 'ubuntu' user for security
+  when: auto_disable_ubuntu_after_switch | bool
+  block:
+    - name: Remove 'ubuntu' from all groups
+      ansible.builtin.user:
+        name: ubuntu
+        groups: ""
+        append: false
+
+    - name: Remove all SSH keys from 'ubuntu'
+      ansible.builtin.copy:
+        dest: /home/ubuntu/.ssh/authorized_keys
+        content: ""
+        owner: ubuntu
+        group: ubuntu
+        mode: "0600"
+      failed_when: false
+
+    - name: Lock 'ubuntu' password
+      ansible.builtin.user:
+        name: ubuntu
+        password_lock: true
+
+    - name: Set 'ubuntu' shell to nologin
+      ansible.builtin.user:
+        name: ubuntu
+        shell: /usr/sbin/nologin
+
+# ---- End play ----
+- name: End play
+  ansible.builtin.meta: end_play

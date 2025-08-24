@@ -1,0 +1,12 @@
+[sshd]
+enabled = true
+port = {{ ssh_port }}
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = {{ fail2ban_maxretry }}
+findtime = {{ fail2ban_findtime }}
+bantime = {{ fail2ban_bantime }}
+backend = systemd
+{% if fail2ban_ignoreip and fail2ban_ignoreip | length > 0 -%}
+ignoreip = 127.0.0.1/8 ::1 {{ fail2ban_ignoreip | join(' ') }}
+{%- endif %}

@@ -1,0 +1,47 @@
+# --------- PRE TASK ----------
+timezone: "Europe/Paris"
+
+# --------- BOOTSTRAP ----------
+admin_user: "<<admin account username>>"
+admin_ssh_pubkeys:
+  - "<<SSH public key 1 to load>>"
+  - "<<SSH public key 2 to load>>"
+  - ...
+
+# --------- SECURITY ----------
+## SSH HARDENING
+ssh_port: <<Custom SSH port>>
+disable_root_ssh: true
+disable_password_auth: true
+
+## UFW
+open_ports:
+  - "{{ ssh_port }}"
+  - 80
+  - 443
+ufw_ipv6_enable: true
+ufw_limit_ssh: true
+
+## Fail2Ban
+fail2ban_maxretry: 5
+fail2ban_bantime: 3600 # 1h
+fail2ban_findtime: 600 # 10min
+fail2ban_ignoreip: []
+
+## Unattended Upgrades
+enable_unattended_upgrades: true
+
+# --------- DOCKER ----------
+docker_channel: "stable"
+docker_daemon_config:
+  log-driver: "json-file"
+  log-opts:
+    max-size: "10m"
+    max-file: "3"
+  exec-opts:
+    - "native.cgroupdriver=systemd"
+  storage-driver: "overlay2"
+
+# ---------- FINALIZE ----------
+reboot_after_finalize: true
+auto_disable_ubuntu_after_switch: true

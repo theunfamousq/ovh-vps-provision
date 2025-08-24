@@ -1,0 +1,14 @@
+Port {{ ssh_port }}
+Protocol 2
+PermitRootLogin {{ 'no' if disable_root_ssh else 'prohibit-password' }}
+PasswordAuthentication {{ 'no' if disable_password_auth else 'yes' }}
+PubkeyAuthentication yes
+ChallengeResponseAuthentication no
+X11Forwarding no
+AllowAgentForwarding no
+AllowTcpForwarding no
+ClientAliveInterval 300
+ClientAliveCountMax 2
+LoginGraceTime 20
+MaxAuthTries 3
+UsePAM yes

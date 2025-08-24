@@ -1,0 +1,32 @@
+- name: Init VPS
+  hosts: vps
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Check Ubuntu >= 22.04 (Debian family)
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] == 'Debian'
+          - ansible_facts['distribution'] == 'Ubuntu'
+          - ansible_facts['distribution_version'] is version('22.04', '>=')
+        fail_msg: "Not supported OS: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+
+    - name: Set timezone
+      community.general.timezone:
+        name: "{{ timezone }}"
+
+    - name: Update cache APT
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+  roles:
+    - role: bootstrap
+      tags: bootstrap
+    - role: security
+      tags: security
+    - role: docker
+      tags: docker
+    - role: finalize
+      tags: finalize

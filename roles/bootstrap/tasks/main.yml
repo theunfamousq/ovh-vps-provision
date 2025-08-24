@@ -1,0 +1,49 @@
+- name: Update and install essential packages
+  ansible.builtin.apt:
+    name:
+      - sudo
+      - vim
+      - nano
+      - curl
+      - ca-certificates
+      - gnupg
+      - ufw
+      - fail2ban
+      - git
+      - python3-apt
+      - unattended-upgrades
+      - apt-listchanges
+      - rsyslog
+      - auditd
+    state: present
+    update_cache: true
+
+- name: Create user {{ admin_user }}
+  ansible.builtin.user:
+    name: "{{ admin_user }}"
+    shell: /bin/bash
+    groups: sudo
+    append: true
+    create_home: true
+
+- name: Set up passwordless sudo for {{ admin_user }}
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/90-{{ admin_user }}-nopasswd"
+    content: "{{ admin_user }} ALL=(ALL) NOPASSWD:ALL"
+    mode: "0440"
+    owner: root
+    group: root
+
+- name: Concatenate admin SSH public keys for {{ admin_user }}
+  ansible.builtin.set_fact:
+    bootstrap_admin_ssh_keys_concat: "{{ (admin_ssh_pubkeys | default([])) | join('\n') }}"
+  when: (admin_ssh_pubkeys | default([])) | length > 0
+
+- name: Install authorized keys for {{ admin_user }}
+  ansible.posix.authorized_key:
+    user: "{{ admin_user }}"
+    key: "{{ bootstrap_admin_ssh_keys_concat }}"
+    state: present
+    manage_dir: true
+    exclusive: true
+  when: (admin_ssh_pubkeys | default([])) | length > 0

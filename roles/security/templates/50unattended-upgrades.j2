@@ -1,0 +1,6 @@
+Unattended-Upgrade::Origins-Pattern {
+  "origin=${distro_id},codename=${distro_codename}-security";
+  "origin=${distro_id},codename=${distro_codename}-updates";
+};
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-Time "04:30";
